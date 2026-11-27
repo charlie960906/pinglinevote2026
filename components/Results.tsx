@@ -1,6 +1,7 @@
 'use client';
 /* 開票結果頁（/）：總計、過半門檻、選舉概況表 */
 import { CONFIG, ELECTORATE, fmt, tm, type Candidate } from '@/lib/config';
+import Link from 'next/link';
 import { useVotes } from '@/lib/votes';
 
 const pct = (v: number, total: number, digits = 2) => (total > 0 ? (v / total * 100).toFixed(digits) + '%' : '—');
@@ -46,6 +47,8 @@ export default function Results() {
         </div>
       </div>
 
+      {/* 最下面：工作人員登入回報 */}
+      <div className="foot"><Link href="/report/">登入回報系統 ›</Link></div>
     </main>
   );
 }
