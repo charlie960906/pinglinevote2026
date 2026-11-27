@@ -114,9 +114,6 @@ function StationForm({ stationId }: { stationId: string }) {
     if ([a, b, x].some((n) => !Number.isInteger(n) || n < 0) || v.a === '' || v.b === '' || v.x === '') {
       setMsg({ ok: false, text: '票數必須是 0 以上的整數' }); return;
     }
-    if (a + b + x > s.elig) {
-      setMsg({ ok: false, text: `投票數 ${fmt(a + b + x)} 超過選舉人數 ${fmt(s.elig)}，請檢查` }); return;
-    }
     setBusy(true);
     try {
       await saveVotes(stationId, { a, b, x });
