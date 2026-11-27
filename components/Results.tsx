@@ -72,13 +72,12 @@ const NEED = Math.floor(ELECTORATE / 2) + 1;
 
 /** 目前兩方票數的拉鋸條（回報頁上方也用這條） */
 export function VoteBar({ data }: { data: VoteData }) {
-  const { A, B, X, n, T } = sumVotes(data);
+  const { A, B, X, T } = sumVotes(data);
   return (
     <>
       <Tug A={A} B={B} T={T} EL={ELECTORATE || T} need={NEED} />
       <div className="meta">
         <span>有效票 {fmt(T)}　無效票 {fmt(X)}</span>
-        <span>已回報 {n} / {CONFIG.stations.length} 個開票所</span>
       </div>
     </>
   );
