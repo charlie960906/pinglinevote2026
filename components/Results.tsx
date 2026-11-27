@@ -6,11 +6,14 @@ import { useVotes } from '@/lib/votes';
 
 const pct = (v: number, total: number, digits = 2) => (total > 0 ? (v / total * 100).toFixed(digits) + '%' : '—');
 
+/** 首頁每 3 分鐘更新一次 */
+const POLL_MS = 3 * 60 * 1000;
+
 export default function Results() {
-  const { data, conn } = useVotes();
+  const { data, conn } = useVotes(POLL_MS);
   const C = CONFIG.candidates;
 
-  const { A, B, X, E, n, T } = sumVotes(data);
+  const { A, B, X, E, T } = sumVotes(data);
   const EL = ELECTORATE;
   const last = Math.max(0, ...CONFIG.stations.map((s) => data[s.id]?.t || 0));
 
@@ -24,7 +27,6 @@ export default function Results() {
         <Tug A={A} B={B} T={T} EL={EL || T} need={NEED} />
         <div className="meta">
           <span>有效票 {fmt(T)}　無效票 {fmt(X)}　投票數 {fmt(T + X)}</span>
-          <span>已回報 {n} / {CONFIG.stations.length} 個開票所</span>
         </div>
         {EL > 0 && (
           <div className="maj">
