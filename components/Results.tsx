@@ -9,15 +9,8 @@ export default function Results() {
   const { data, conn } = useVotes();
   const C = CONFIG.candidates;
 
-  // 加總已回報的開票所
-  let A = 0, B = 0, X = 0, E = 0, n = 0;
-  for (const s of CONFIG.stations) {
-    const r = data[s.id];
-    if (r) { A += +r.a || 0; B += +r.b || 0; X += +r.x || 0; E += s.elig; n++; }
-  }
-  const T = A + B;
+  const { A, B, X, E, n, T } = sumVotes(data);
   const EL = ELECTORATE;
-  const NEED = Math.floor(EL / 2) + 1; // 過半門檻：選舉人數一半再加 1 票
   const last = Math.max(0, ...CONFIG.stations.map((s) => data[s.id]?.t || 0));
 
   return (
@@ -54,6 +47,35 @@ export default function Results() {
       </div>
 
     </main>
+  );
+}
+
+type VoteData = ReturnType<typeof useVotes>['data'];
+
+/** 加總已回報的開票所 */
+function sumVotes(data: VoteData) {
+  let A = 0, B = 0, X = 0, E = 0, n = 0;
+  for (const s of CONFIG.stations) {
+    const r = data[s.id];
+    if (r) { A += +r.a || 0; B += +r.b || 0; X += +r.x || 0; E += s.elig; n++; }
+  }
+  return { A, B, X, E, n, T: A + B };
+}
+
+/** 過半門檻：選舉人數一半再加 1 票 */
+const NEED = Math.floor(ELECTORATE / 2) + 1;
+
+/** 目前兩方票數的拉鋸條（回報頁上方也用這條） */
+export function VoteBar({ data }: { data: VoteData }) {
+  const { A, B, X, n, T } = sumVotes(data);
+  return (
+    <>
+      <Tug A={A} B={B} T={T} EL={ELECTORATE || T} need={NEED} />
+      <div className="meta">
+        <span>有效票 {fmt(T)}　無效票 {fmt(X)}</span>
+        <span>已回報 {n} / {CONFIG.stations.length} 個開票所</span>
+      </div>
+    </>
   );
 }
 
@@ -101,7 +123,7 @@ function MajorityRow({ k, c, v, need }: { k: 'a' | 'b'; c: Candidate; v: number;
 }
 
 function OverviewTable({ data, A, B, X, E, last }: {
-  data: ReturnType<typeof useVotes>['data']; A: number; B: number; X: number; E: number; last: number;
+  data: VoteData; A: number; B: number; X: number; E: number; last: number;
 }) {
   const C = CONFIG.candidates;
   // 欄位名稱；手機版每一格會用 data-label 顯示欄名（表格變成一張張卡片）

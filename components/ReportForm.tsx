@@ -5,13 +5,14 @@ import Link from 'next/link';
 import { CONFIG, fmt, normAccount, stationOf, tm } from '@/lib/config';
 import { useVotes, saveVotes } from '@/lib/votes';
 import { login, logout, useAccount } from '@/lib/auth';
+import { VoteBar } from '@/components/Results';
 
 type Msg = { ok: boolean; text: string } | null;
 
 export default function ReportForm() {
   const account = useAccount();
   const station = stationOf(account);
-  const { conn } = useVotes();
+  const { conn, data } = useVotes();
   const [loginMsg, setLoginMsg] = useState<Msg>(null);
 
   // 登入的帳號不在 4 個開票所名單內 → 自動登出
@@ -34,6 +35,8 @@ export default function ReportForm() {
           </div>
           {station && <button className="logout" onClick={onLogout}>登出</button>}
         </div>
+        {/* 上方：目前兩方總票數 */}
+        <VoteBar data={data} />
       </div>
 
       {account === undefined ? (
