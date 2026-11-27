@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>平林里長開票結果</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="dash">
+
+<!-- 上方：加總 -->
+<div class="card c-sum">
+  <h1 id="title">平林里長開票結果</h1>
+  <div class="sub" id="conn"></div>
+  <div class="top">
+    <div class="tc a" id="tcA"><div class="no" id="noA"></div><div class="nm" id="nmA"></div><div class="v" id="vA">0</div><div class="p" id="pA">—</div></div>
+    <div class="tc b" id="tcB"><div class="no" id="noB"></div><div class="nm" id="nmB"></div><div class="v" id="vB">0</div><div class="p" id="pB">—</div></div>
+  </div>
+  <div class="split"><i id="sA" style="width:50%"></i><i id="sB" style="width:50%"></i></div>
+  <div class="meta"><span id="total"></span><span id="done"></span></div>
+  <div class="maj" id="maj"></div>
+</div>
+
+<!-- 各開票所狀態 -->
+<div class="card c-st">
+  <b>各開票所回報狀況</b>
+  <div class="stations" id="stations" style="margin-top:10px"></div>
+</div>
+
+<!-- 選舉概況 -->
+<div class="card c-tbl">
+  <b>選舉概況</b>
+  <div class="tblwrap"><table id="tbl" class="ov"></table></div>
+</div>
+
+</main>
+
+<script src="common.js"></script>
+<script>
+let data = {};
+
+function render() {
+  const C = CONFIG.candidates;
+  let A = 0, B = 0, X = 0, E = 0, n = 0;
+  CONFIG.stations.forEach(s => { const r = data[s.id]; if (r) { A += +r.a || 0; B += +r.b || 0; X += +r.x || 0; E += s.elig || 0; n++; } });
+  const T = A + B;
+  const rate = (v, e) => e > 0 ? (v / e * 100).toFixed(2) + '%' : '—';
+  const EL = CONFIG.stations.reduce((t, s) => t + (s.elig || 0), 0);   // 全里選舉人數（各投票所加總）
+  const NEED = Math.floor(EL / 2) + 1;                                  // 過半門檻：選舉人數一半再加 1 票
+  const pe = v => EL ? (v / EL * 100).toFixed(2) + '%' : '—';
+
+  $('title').textContent = CONFIG.title; document.title = CONFIG.title;
+  $('noA').textContent = C.a.no + ' 號'; $('noB').textContent = C.b.no + ' 號';
+  $('nmA').textContent = C.a.name; $('nmB').textContent = C.b.name;
+  $('vA').textContent = fmt(A); $('vB').textContent = fmt(B);
+  $('pA').innerHTML = (T ? (A / T * 100).toFixed(1) + '%' : '—') + `<div class="pe">佔選舉人 ${pe(A)}</div>`;
+  $('pB').innerHTML = (T ? (B / T * 100).toFixed(1) + '%' : '—') + `<div class="pe">佔選舉人 ${pe(B)}</div>`;
+  $('sA').style.width = (T ? A / T * 100 : 50) + '%';
+  $('sB').style.width = (T ? B / T * 100 : 50) + '%';
+  $('tcA').classList.toggle('lead', A > B); $('tcB').classList.toggle('lead', B > A);
+  $('total').textContent = `有效票 ${fmt(T)}　無效票 ${fmt(X)}　投票數 ${fmt(T + X)}`;
+  $('done').textContent = `已回報 ${n} / ${CONFIG.stations.length} 個開票所`;
+
+  if (EL) {
+    const row = (k, c, v) => {
+      const left = NEED - v;
+      return `<div class="row ${k}"><span>${c.no}號 ${c.name}</span><div class="bar"><i style="width:${Math.min(100, v / NEED * 100)}%"></i></div>` +
+        `<span class="r">${left > 0 ? `達成 ${(v / NEED * 100).toFixed(1)}%，差 ${fmt(left)} 票` : '<span class="won">已過半</span>'}</span></div>`;
+    };
+    $('maj').innerHTML = `<div class="hd"><span>${CONFIG.electorateNote} <b>${fmt(EL)}</b> 人</span><span>過半門檻 <b>${fmt(NEED)}</b> 票（${(NEED / EL * 100).toFixed(2)}%）</span></div>` +
+      row('a', C.a, A) + row('b', C.b, B) +
+      `<div class="hd" style="margin-top:8px"><span>目前投票數佔選舉人 ${pe(T + X)}</span></div>`;
+  }
+
+  $('stations').innerHTML = CONFIG.stations.map(s => {
+    const r = data[s.id];
+    return `<div class="st"><b><span class="dot ${r ? 'on' : ''}"></span>${s.name}</b>` + (s.place ? `<div class="n">${s.place}</div>` : '') +
+      (r ? `<div class="n"><em class="r">${C.a.no}號 ${fmt(r.a)}</em>　<em class="l">${C.b.no}號 ${fmt(r.b)}</em></div><div class="n">更新 ${tm(r.t)}</div>` : `<div class="n">尚未回報</div>`) + `</div>`;
+  }).join('');
+
+  const last = Math.max(0, ...CONFIG.stations.map(s => (data[s.id] && data[s.id].t) || 0));
+  // 欄位名稱；手機版每一格會用 data-label 顯示欄名（表格變成一張張卡片）
+  const H = ['投開票所', `${C.a.no}號 ${C.a.name}`, `${C.b.no}號 ${C.b.name}`, '有效票數', '無效票數', '投票數', '選舉人數', '投票率', '最後更新'];
+  const tr = (cells, cls = '') => `<tr class="${cls}">` + cells.map((c, i) => `<td data-label="${H[i]}">${c}</td>`).join('') + '</tr>';
+  $('tbl').innerHTML = `<thead><tr>${H.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>` +
+    CONFIG.stations.map(s => {
+      const r = data[s.id], el = s.elig ? fmt(s.elig) : '—';
+      if (!r) return tr([s.place || s.name, '—', '—', '—', '—', '—', el, '—', '—'], 'empty');
+      const v = (+r.a || 0) + (+r.b || 0), x = +r.x || 0;
+      return tr([s.place || s.name, fmt(r.a), fmt(r.b), fmt(v), fmt(x), fmt(v + x), el, rate(v + x, s.elig), tm(r.t)]);
+    }).join('') +
+    tr(['合計', fmt(A), fmt(B), fmt(T), fmt(X), fmt(T + X), fmt(E || EL), rate(T + X, E || EL), tm(last)].map(c => `<b>${c}</b>`), 'sum') +
+    '</tbody>';
+}
+
+connect(d => { data = d; render(); });
+</script>
+</body>
+</html>

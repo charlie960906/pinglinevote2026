@@ -1,0 +1,27 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "election": {
+      "stations": {
+        ".read": true,
+        "s1": {
+          ".write": "auth != null && auth.uid == 'SKJGUPkuX1PgrYWjAC5FLVhj9Rv2'",
+          ".validate": "newData.hasChildren(['a','b','x','t']) && newData.child('a').isNumber() && newData.child('a').val() >= 0 && newData.child('b').isNumber() && newData.child('b').val() >= 0 && newData.child('x').isNumber() && newData.child('x').val() >= 0 && newData.child('t').isNumber()"
+        },
+        "s2": {
+          ".write": "auth != null && auth.uid == 'uUAieF3Qqrh2E1hI9lbtL7jUU5D3'",
+          ".validate": "newData.hasChildren(['a','b','x','t']) && newData.child('a').isNumber() && newData.child('a').val() >= 0 && newData.child('b').isNumber() && newData.child('b').val() >= 0 && newData.child('x').isNumber() && newData.child('x').val() >= 0 && newData.child('t').isNumber()"
+        },
+        "s3": {
+          ".write": "auth != null && auth.uid == 'hBAf0XvKzJbb2nFVIuQCGOM9YIq1'",
+          ".validate": "newData.hasChildren(['a','b','x','t']) && newData.child('a').isNumber() && newData.child('a').val() >= 0 && newData.child('b').isNumber() && newData.child('b').val() >= 0 && newData.child('x').isNumber() && newData.child('x').val() >= 0 && newData.child('t').isNumber()"
+        },
+        "s4": {
+          ".write": "auth != null && auth.uid == '3GadsNjfV4QK8zOvZJmZEGBMzoh1'",
+          ".validate": "newData.hasChildren(['a','b','x','t']) && newData.child('a').isNumber() && newData.child('a').val() >= 0 && newData.child('b').isNumber() && newData.child('b').val() >= 0 && newData.child('x').isNumber() && newData.child('x').val() >= 0 && newData.child('t').isNumber()"
+        }
+      }
+    }
+  }
+}

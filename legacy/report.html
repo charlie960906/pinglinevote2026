@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>平林里長計票回報</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+
+<div class="card">
+  <div class="hdr">
+    <div>
+      <h1>平林里長計票回報</h1>
+      <div class="sub" id="conn"></div>
+    </div>
+    <button class="logout hide" id="logout">登出</button>
+  </div>
+</div>
+
+<!-- 載入中 -->
+<div id="vWait" class="card sub">載入中…</div>
+
+<!-- 登入 -->
+<div id="vLogin" class="hide">
+  <form class="card login" id="loginForm" autocomplete="on">
+    <b>回報人員登入</b>
+    <p class="sub" style="margin:4px 0 14px">請用你負責的開票所帳號登入，登入後只能回報自己的開票所。</p>
+    <label for="uAcc">帳號（開票所編號）</label>
+    <input id="uAcc" name="username" autocomplete="username" inputmode="numeric" placeholder="例如 204" required>
+    <label for="uPw">密碼</label>
+    <input id="uPw" name="password" type="password" autocomplete="current-password" required>
+    <button class="send" id="loginBtn" type="submit">登入</button>
+    <div id="lMsg"></div>
+    <p class="sub" id="testHint"></p>
+  </form>
+</div>
+
+<!-- 回報畫面 -->
+<div id="vReport" class="hide">
+  <div class="card">
+    <div class="sub" id="who"></div>
+    <h1 id="rName"></h1>
+    <div class="sub" id="rLast"></div>
+    <div class="fields">
+      <div class="f a">
+        <label for="iA" id="lA"></label>
+        <input id="iA" type="number" inputmode="numeric" min="0" step="1">
+        <div class="step"><button data-t="iA" data-d="-1">−1</button><button data-t="iA" data-d="1">+1</button><button data-t="iA" data-d="10">+10</button></div>
+      </div>
+      <div class="f b">
+        <label for="iB" id="lB"></label>
+        <input id="iB" type="number" inputmode="numeric" min="0" step="1">
+        <div class="step"><button data-t="iB" data-d="-1">−1</button><button data-t="iB" data-d="1">+1</button><button data-t="iB" data-d="10">+10</button></div>
+      </div>
+    </div>
+    <div class="f x">
+      <label for="iX">無效票數</label>
+      <input id="iX" type="number" inputmode="numeric" min="0" step="1">
+      <div class="step"><button data-t="iX" data-d="-1">−1</button><button data-t="iX" data-d="1">+1</button><button data-t="iX" data-d="10">+10</button></div>
+    </div>
+    <div class="sub" id="rSum" style="margin:12px 0"></div>
+    <button class="send" id="send">送出回報</button>
+    <div id="rMsg"></div>
+    <p class="sub">填的是這個開票所「目前累計」的票數，再次送出會覆蓋上一次的數字。</p>
+  </div>
+</div>
+
+<div class="foot"><a href="index.html">看開票結果 ›</a></div>
+</main>
+
+<script src="common.js"></script>
+<script>
+let data = {}, current = null, filled = false;
+
+function show(view) { ['vWait', 'vLogin', 'vReport'].forEach(v => $(v).classList.toggle('hide', v !== view)); }
+
+/* ---------- 登入 ---------- */
+$('testHint').textContent = CONFIG.USE_FIREBASE ? '' : `本機測試模式：帳號 204～207，密碼 ${CONFIG.LOCAL_TEST_PASSWORD}`;
+
+$('loginForm').onsubmit = async e => {
+  e.preventDefault();
+  const acc = normAccount($('uAcc').value), pw = $('uPw').value, m = $('lMsg');
+  m.innerHTML = '';
+  if (!stationOf(acc)) { m.innerHTML = '<div class="msg err">沒有這個帳號，請輸入開票所編號，例如 204</div>'; return; }
+  $('loginBtn').disabled = true;
+  try { await Auth.login(acc, pw); $('uPw').value = ''; }
+  catch (err) { m.innerHTML = `<div class="msg err">${err.message}</div>`; }
+  $('loginBtn').disabled = false;
+};
+$('logout').onclick = async () => { if (confirm('確定要登出嗎？')) await Auth.logout(); };
+
+function onAccount(acc) {
+  const s = acc && stationOf(acc);
+  if (acc && !s) {   // 登入的帳號不在 4 個開票所名單內
+    Auth.logout();
+    $('lMsg').innerHTML = '<div class="msg err">這個帳號沒有對應的開票所</div>';
+    return;
+  }
+  $('logout').classList.toggle('hide', !s);
+  if (!s) { current = null; show('vLogin'); return; }
+  current = s.id; filled = false;
+  openStation();
+  show('vReport');
+}
+
+/* ---------- 回報 ---------- */
+function openStation() {
+  const s = CONFIG.stations.find(x => x.id === current), C = CONFIG.candidates;
+  $('who').textContent = `已登入：${s.account}`;
+  $('rName').textContent = s.name + (s.place ? '｜' + s.place : '');
+  $('lA').textContent = `${C.a.no} 號 ${C.a.name} 目前票數`;
+  $('lB').textContent = `${C.b.no} 號 ${C.b.name} 目前票數`;
+  $('rMsg').innerHTML = '';
+  fillFromData();
+}
+// 第一次拿到資料時，把上次回報的數字帶進輸入框（之後不再覆蓋正在輸入的數字）
+function fillFromData() {
+  if (!current) return;
+  const r = data[current];
+  if (!filled) { $('iA').value = r ? r.a : 0; $('iB').value = r ? r.b : 0; $('iX').value = r ? (r.x || 0) : 0; }
+  if (r || dataLoaded) filled = true;
+  const C = CONFIG.candidates;
+  $('rLast').textContent = r && r.t ? `上次回報：${tm(r.t)}（${C.a.no}號 ${r.a}、${C.b.no}號 ${r.b}、無效 ${r.x || 0}）` : '尚未回報過';
+  sum();
+}
+function sum() {
+  const a = +$('iA').value || 0, b = +$('iB').value || 0, x = +$('iX').value || 0, s = CONFIG.stations.find(z => z.id === current);
+  $('rSum').textContent = `有效票 ${fmt(a + b)}　投票數 ${fmt(a + b + x)}` + (s && s.elig ? `　投票率 ${((a + b + x) / s.elig * 100).toFixed(2)}%` : '');
+}
+['iA', 'iB', 'iX'].forEach(i => $(i).addEventListener('input', sum));
+document.querySelectorAll('.step button').forEach(b => b.onclick = () => {
+  const i = $(b.dataset.t); i.value = Math.max(0, (parseInt(i.value) || 0) + +b.dataset.d); sum();
+});
+
+$('send').onclick = async () => {
+  const a = Number($('iA').value), b = Number($('iB').value), x = Number($('iX').value), m = $('rMsg');
+  if ([a, b, x].some(v => !Number.isInteger(v) || v < 0) || $('iA').value === '' || $('iB').value === '' || $('iX').value === '') {
+    m.innerHTML = '<div class="msg err">票數必須是 0 以上的整數</div>'; return;
+  }
+  const st = CONFIG.stations.find(z => z.id === current);
+  if (st.elig && a + b + x > st.elig) {
+    m.innerHTML = `<div class="msg err">投票數 ${fmt(a + b + x)} 超過選舉人數 ${fmt(st.elig)}，請檢查</div>`; return;
+  }
+  $('send').disabled = true;
+  try {
+    await DB.save(current, { a, b, x });
+    m.innerHTML = `<div class="msg ok">已送出（${tm(Date.now())}），開票結果頁會即時更新</div>`;
+  } catch (e) {
+    const denied = /permission|PERMISSION_DENIED/i.test(e.code || e.message || '');
+    m.innerHTML = '<div class="msg err">送出失敗：' + (denied ? '沒有權限回報這個開票所，請重新登入' : (e.message || e)) + '</div>';
+  }
+  $('send').disabled = false;
+};
+
+/* ---------- 啟動 ---------- */
+let dataLoaded = false;
+connect(d => { data = d; if (Object.keys(d).length) dataLoaded = true; fillFromData(); });
+Promise.resolve(Auth.onChange(onAccount)).catch(e => {
+  show('vLogin'); $('lMsg').innerHTML = `<div class="msg err">登入系統載入失敗：${e.message}</div>`;
+});
+</script>
+</body>
+</html>
